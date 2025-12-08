@@ -16,12 +16,14 @@ RUN npm run build
 FROM php:8.3-fpm-alpine
 
 # Dependencias de sistema necesarias
+# CORRECCIÓN: Se agregó 'oniguruma-dev' necesario para mbstring
 RUN apk add --no-cache \
     git curl zip unzip bash shadow \
     libpng-dev libjpeg-turbo-dev libwebp-dev libxpm-dev \
     icu-dev libzip-dev zlib-dev \
     poppler-utils \
-    mysql-client
+    mysql-client \
+    oniguruma-dev
 
 # Extensiones PHP
 RUN docker-php-ext-configure gd --with-jpeg --with-webp
