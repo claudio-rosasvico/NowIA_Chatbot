@@ -32,15 +32,29 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'organization_name' => ['required', 'string', 'max:255'],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'is_active' => false,
+            ]);
+
+            $org = \App\Models\Organization::create([
+                'name' => $request->organization_name,
+            ]);
+
+            $user->organizations()->attach($org->id, ['role' => 'owner']);
+            $user->current_organization_id = $org->id;
+            $user->save();
+
+            return $user;
+        });
 
         event(new Registered($user));
 

@@ -39,14 +39,14 @@
                                         onclick="navigator.clipboard.writeText('{{ $b->public_key }}')">
                                         Copiar
                                     </button>
-                                    <button class="btn btn-outline-primary" type="button" title="Script para embeber" data-bs-toggle="tooltip"
+                                    <button class="btn btn-outline-primary" type="button" title="Script para embeber"
+                                        data-bs-toggle="tooltip"
                                         onclick="navigator.clipboard.writeText('<script defer src=&quot;{{ url('/widget.js') }}?key={{ $b->public_key }}&quot;></'+'script>')">
                                         Copiar script
                                     </button>
                                 </div>
                             @elseif($b->channel === 'web')
-                                <button class="btn btn-sm btn-outline-warning"
-                                    wire:click="generateKey({{ $b->id }})">
+                                <button class="btn btn-sm btn-outline-warning" wire:click="generateKey({{ $b->id }})">
                                     Generar key
                                 </button>
                             @else
@@ -56,12 +56,10 @@
 
                         <td class="text-end">
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-secondary"
-                                    wire:click="edit({{ $b->id }})">Editar</button>
-                                <button class="btn btn-outline-info"
-                                    wire:click="makeDefault({{ $b->id }})">Hacer default</button>
-                                <button class="btn btn-outline-danger"
-                                    wire:click="delete({{ $b->id }})">Borrar</button>
+                                <button class="btn btn-outline-secondary" wire:click="edit({{ $b->id }})">Editar</button>
+                                <button class="btn btn-outline-info" wire:click="makeDefault({{ $b->id }})">Hacer
+                                    default</button>
+                                <button class="btn btn-outline-danger" wire:click="delete({{ $b->id }})">Borrar</button>
                             </div>
                         </td>
                     </tr>
@@ -124,23 +122,23 @@
 
                                             <div class="col-12">
                                                 <label class="form-label">Personalidad (system prompt)</label>
-                                                <textarea class="form-control" rows="4" wire:model.defer="system_prompt"></textarea>
+                                                <textarea class="form-control" rows="4"
+                                                    wire:model.defer="system_prompt"></textarea>
                                             </div>
 
                                             <div class="col-md-3">
                                                 <label class="form-label">Temperatura</label>
-                                                <input type="number" step="0.1" min="0" max="1"
-                                                    class="form-control" wire:model.defer="temperature">
+                                                <input type="number" step="0.1" min="0" max="1" class="form-control"
+                                                    wire:model.defer="temperature">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Máx. tokens</label>
-                                                <input type="number" min="64" max="2048"
-                                                    class="form-control" wire:model.defer="max_tokens">
+                                                <input type="number" min="64" max="2048" class="form-control"
+                                                    wire:model.defer="max_tokens">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Idioma</label>
-                                                <input class="form-control" wire:model.defer="language"
-                                                    placeholder="es">
+                                                <input class="form-control" wire:model.defer="language" placeholder="es">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Retrieval</label>
@@ -148,6 +146,14 @@
                                                     <option value="semantic">Semántico</option>
                                                     <option value="keyword">Keyword</option>
                                                 </select>
+                                            </div>
+
+                                            <div class="col-12" @if($channel !== 'web') style="display:none" @endif>
+                                                <label class="form-label">Dominios permitidos (Web)</label>
+                                                <input class="form-control" wire:model.defer="allowed_domains"
+                                                    placeholder="ejemplo.com, app.ejemplo.com (Dejar vacío para permitir todos)">
+                                                <div class="form-text">Separa los dominios con comas. El widget solo
+                                                    funcionará en estas URL.</div>
                                             </div>
 
                                             <div class="col-3">
@@ -159,8 +165,7 @@
                                                 </div>
                                             </div>
 
-                                            <div class="col-9"
-                                                @if ($channel !== 'telegram') style="display:none" @endif>
+                                            <div class="col-9" @if ($channel !== 'telegram') style="display:none" @endif>
                                                 <label class="form-label">Token (Telegram)</label>
                                                 <input type="text" class="form-control" wire:model.defer="token"
                                                     placeholder="123456:ABC...">
@@ -199,8 +204,21 @@
 
                                             <div class="col-md-4">
                                                 <label class="form-label">Color primario</label>
-                                                <input class="form-control" wire:model.defer="theme_primary"
-                                                    placeholder="#2563eb">
+                                                <div class="input-group">
+                                                    <input type="color" class="form-control form-control-color"
+                                                        wire:model.defer="theme_primary" title="Elegir color">
+                                                    <input type="text" class="form-control" wire:model.defer="theme_primary"
+                                                        placeholder="#2563eb">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Color secundario</label>
+                                                <div class="input-group">
+                                                    <input type="color" class="form-control form-control-color"
+                                                        wire:model.defer="theme_secondary" title="Elegir color">
+                                                    <input type="text" class="form-control"
+                                                        wire:model.defer="theme_secondary" placeholder="#ffffff">
+                                                </div>
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label">Posición botón</label>
@@ -209,12 +227,32 @@
                                                     <option value="bl">Abajo izquierda</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-4 d-flex align-items-end">
+
+                                            <div class="col-12">
+                                                <label class="form-label">Logo de la organización</label>
+                                                <input type="file" class="form-control" wire:model="logo" accept="image/*">
+                                                <div wire:loading wire:target="logo" class="text-muted small">Subiendo...
+                                                </div>
+
+                                                @if ($logo)
+                                                    <div class="mt-2">
+                                                        <small>Preview:</small>
+                                                        <img src="{{ $logo->temporaryUrl() }}"
+                                                            style="height: 40px; border-radius: 4px;">
+                                                    </div>
+                                                @elseif($currentLogo)
+                                                    <div class="mt-2">
+                                                        <small>Actual:</small>
+                                                        <img src="{{ $currentLogo }}" style="height: 40px; border-radius: 4px;">
+                                                    </div>
+                                                @endif
+                                            </div>
+
+                                            <div class="col-12 mt-3">
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" id="thround"
                                                         wire:model.defer="theme_rounded">
-                                                    <label class="form-check-label" for="thround">Bordes
-                                                        redondeados</label>
+                                                    <label class="form-check-label" for="thround">Bordes redondeados</label>
                                                 </div>
                                             </div>
                                         </div>

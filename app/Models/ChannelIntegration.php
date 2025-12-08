@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ChannelIntegration extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Models\Concerns\BelongsToOrganization;
 
     protected $fillable = ['organization_id', 'channel', 'enabled', 'config'];
     protected $casts = ['config' => 'array'];

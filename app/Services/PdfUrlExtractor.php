@@ -21,11 +21,16 @@ class PdfUrlExtractor
         $localPath = $isUrl ? $this->downloadTemp($pathOrUrl) : $this->normalizePath($pathOrUrl);
 
         $parser = new Parser();
-        $pdf    = $parser->parseFile($localPath);
+        try {
+            $pdf = $parser->parseFile($localPath);
+        } catch (\Throwable $e) {
+            // Manejo de error específico de parser (ej. archivo dañado, versión no soportada)
+            throw new \RuntimeException("Error al leer el PDF (posiblemente dañado o encriptado): " . $e->getMessage());
+        }
 
-        $text    = $pdf->getText() ?? '';
+        $text = $pdf->getText() ?? '';
         $details = $pdf->getDetails() ?? [];
-        $pages   = $pdf->getPages();
+        $pages = $pdf->getPages();
 
         // Limpieza del temp si bajamos desde URL
         if ($isUrl) {
@@ -35,10 +40,10 @@ class PdfUrlExtractor
         return [
             'text' => trim($text),
             'meta' => [
-                'title'  => $details['Title']  ?? null,
+                'title' => $details['Title'] ?? null,
                 'author' => $details['Author'] ?? null,
-                'pages'  => is_array($pages) ? count($pages) : (int) $pages,
-                'file'   => $isUrl ? null : basename($localPath),
+                'pages' => is_array($pages) ? count($pages) : (int) $pages,
+                'file' => $isUrl ? null : basename($localPath),
                 'source' => $isUrl ? $pathOrUrl : null,
             ],
         ];
@@ -57,19 +62,23 @@ class PdfUrlExtractor
 
     protected function normalizePath(string $path): string
     {
-        if (is_file($path)) return $path;
+        if (is_file($path))
+            return $path;
 
         // 1) intento en storage/app/<path>
         $candidate = storage_path('app/' . $path);
-        if (is_file($candidate)) return $candidate;
+        if (is_file($candidate))
+            return $candidate;
 
         // 2) intento en storage/app/public/<path>  👈 PARCHE CLAVE
         $candidate = storage_path('app/public/' . $path);
-        if (is_file($candidate)) return $candidate;
+        if (is_file($candidate))
+            return $candidate;
 
         // 3) intento en public_path (por si lo moviste ahí)
         $candidate = public_path($path);
-        if (is_file($candidate)) return $candidate;
+        if (is_file($candidate))
+            return $candidate;
 
         throw new \InvalidArgumentException("PDF no encontrado en: {$path}");
     }

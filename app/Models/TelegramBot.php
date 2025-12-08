@@ -6,8 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class TelegramBot extends Model
 {
+    use \App\Models\Concerns\BelongsToOrganization;
+
     protected $fillable = [
-        'organization_id','bot_id','name','token','last_update_id','is_enabled'
+        'organization_id',
+        'bot_id',
+        'name',
+        'token',
+        'last_update_id',
+        'is_enabled'
     ];
     protected $casts = [
         'is_enabled' => 'boolean',

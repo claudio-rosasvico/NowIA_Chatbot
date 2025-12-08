@@ -101,12 +101,8 @@ class ChatService
             ]);
             $reply = trim((string)$text) !== '' ? (string)$text : $this->presenter->fallback($hits, $cfg);
 
-            $provider = env('LLM_PROVIDER', 'ollama');
-            $model    = match ($provider) {
-                'openai' => env('OPENAI_MODEL'),
-                'gemini' => env('GEMINI_MODEL'),
-                default  => env('OLLAMA_MODEL'),
-            } ?: 'unknown';
+            $provider = 'openai';
+            $model    = env('OPENAI_MODEL', 'gpt-4o-mini');
         } catch (\Throwable $e) {
             \Log::error('LLM fallo', ['error' => $e->getMessage()]);
             $reply    = $this->presenter->fallback($hits, $cfg);

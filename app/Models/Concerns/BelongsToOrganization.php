@@ -2,32 +2,37 @@
 
 namespace App\Models\Concerns;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Scope;
-
-class OrgScope implements Scope
-{
-    public function apply(Builder $builder, Model $model)
-    {
-        // Evitar aplicar en consola de migraciones/seeders si no hay org en contexto
-        if (function_exists('current_org_id') && ($orgId = current_org_id())) {
-            $builder->where($model->getTable().'.organization_id', $orgId);
-        }
-    }
-}
 
 trait BelongsToOrganization
 {
     public static function bootBelongsToOrganization()
     {
-        static::addGlobalScope(new OrgScope);
+        static::addGlobalScope(new \App\Models\Scopes\OrganizationScope);
 
-        // Asignar org automáticamente al crear
+        // Asignar org automáticamente al crear si hay usuario autenticado
         static::creating(function (Model $model) {
-            if (function_exists('current_org_id') && !$model->getAttribute('organization_id')) {
-                $model->setAttribute('organization_id', current_org_id());
+            if (\Illuminate\Support\Facades\Auth::check()) {
+                $user = \Illuminate\Support\Facades\Auth::user();
+
+                // Definir Org ID a usar:
+                // 1. Si es Super Admin y tiene impersonation, usar ese.
+                // 2. Si no, usar su current_organization_id.
+                $orgIdToAssign = $user->current_organization_id;
+
+                if ($user->is_super_admin && session('admin_impersonated_org_id')) {
+                    $orgIdToAssign = session('admin_impersonated_org_id');
+                }
+
+                if ($orgIdToAssign && !$model->organization_id) {
+                    $model->organization_id = $orgIdToAssign;
+                }
             }
         });
+    }
+
+    public function organization()
+    {
+        return $this->belongsTo(\App\Models\Organization::class);
     }
 }

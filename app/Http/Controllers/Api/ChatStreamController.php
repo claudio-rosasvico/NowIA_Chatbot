@@ -16,17 +16,17 @@ class ChatStreamController extends Controller
     public function __invoke(Request $req, RetrievalService $retrieval, LlmGateway $llm)
     {
         $userText = (string) $req->input('q', '');
-        $convId   = $req->input('conversation_id');
-        $channel  = (string) $req->input('channel', 'web');
+        $convId = $req->input('conversation_id');
+        $channel = (string) $req->input('channel', 'web');
 
         // Crear/obtener conversación con bot por canal
         $conversation = $convId
             ? Conversation::findOrFail($convId)
             : Conversation::create([
-                'channel'          => $channel,
-                'started_at'       => now(),
-                'organization_id'  => current_org_id(),
-                'bot_id'           => ensure_default_bot($channel)->id, // 👈 aquí
+                'channel' => $channel,
+                'started_at' => now(),
+                'organization_id' => current_org_id(),
+                'bot_id' => ensure_default_bot($channel)->id, // 👈 aquí
             ]);
 
         // Si la conversación ya existía pero no tiene bot/canal, completamos
@@ -46,21 +46,21 @@ class ChatStreamController extends Controller
         $userMsg = Message::create([
             'conversation_id' => $conversation->id,
             'organization_id' => $conversation->organization_id,
-            'role'            => 'user',
-            'content'         => $userText,
+            'role' => 'user',
+            'content' => $userText,
         ]);
 
         // Retrieval
-        $hits    = $retrieval->search($userText, 6);
+        $hits = $retrieval->search($userText, 6);
         $context = $retrieval->buildContext($hits, 1800);
 
         // Config del bot (personalidad/parámetros)
-        $cfg       = $bot?->config ?? [];
-        $persona   = trim((string)($cfg['system_prompt'] ?? ''));
-        $temp      = (float) ($cfg['temperature'] ?? env('LLM_TEMPERATURE', 0.2));
-        $maxTokens = (int)   ($cfg['max_tokens']  ?? env('LLM_MAX_TOKENS', 500));
-        $lang      = (string)($cfg['language']    ?? 'es');
-        $citations = (bool)  ($cfg['citations']   ?? false);
+        $cfg = $bot?->config ?? [];
+        $persona = trim((string) ($cfg['system_prompt'] ?? ''));
+        $temp = (float) ($cfg['temperature'] ?? env('LLM_TEMPERATURE', 0.2));
+        $maxTokens = (int) ($cfg['max_tokens'] ?? env('LLM_MAX_TOKENS', 500));
+        $lang = (string) ($cfg['language'] ?? 'es');
+        $citations = (bool) ($cfg['citations'] ?? false);
 
         $rules = "- Usa SOLO el CONTEXTO proporcionado.\n- Si la información no está, dilo.\n- Responde en {$lang} con frases breves.";
         if ($citations) {
@@ -75,30 +75,30 @@ class ChatStreamController extends Controller
             Message::create([
                 'conversation_id' => $conversation->id,
                 'organization_id' => $conversation->organization_id,
-                'role'            => 'assistant',
-                'content'         => $reply,
-                'meta'            => ['citations' => $this->titlesOnly($hits)],
+                'role' => 'assistant',
+                'content' => $reply,
+                'meta' => ['citations' => $this->titlesOnly($hits)],
             ]);
             return response($reply, 200, [
-                'Content-Type'       => 'text/plain; charset=utf-8',
-                'X-Accel-Buffering'  => 'no',
-                'Cache-Control'      => 'no-cache',
+                'Content-Type' => 'text/plain; charset=utf-8',
+                'X-Accel-Buffering' => 'no',
+                'Cache-Control' => 'no-cache',
             ]);
         }
 
         // Mensajes para el LLM
         $messages = [
             ['role' => 'system', 'content' => $system],
-            ['role' => 'user',   'content' => "Pregunta: {$userText}\n\nCONTEXTO:\n{$context}\n\nFin del contexto."],
+            ['role' => 'user', 'content' => "Pregunta: {$userText}\n\nCONTEXTO:\n{$context}\n\nFin del contexto."],
         ];
 
         $provider = env('LLM_PROVIDER', 'ollama');
-        $model    = $provider === 'ollama'
+        $model = $provider === 'ollama'
             ? env('OLLAMA_MODEL')
             : (env('OPENAI_MODEL') ?? env('GEMINI_MODEL'));
 
         return response()->stream(function () use ($llm, $messages, $conversation, $hits, $provider, $model, $context, $temp, $maxTokens) {
-            $t0    = microtime(true);
+            $t0 = microtime(true);
             $reply = '';
             $flush = function () {
                 @ob_flush();
@@ -108,8 +108,8 @@ class ChatStreamController extends Controller
             try {
                 $llm->stream($messages, [
                     'temperature' => $temp,
-                    'num_ctx'     => 1024,       // opcional (útil en notebooks)
-                    'max_tokens'  => $maxTokens, // LlmGateway debe mapear a num_predict para Ollama
+                    'num_ctx' => 1024,       // opcional (útil en notebooks)
+                    'max_tokens' => $maxTokens, // LlmGateway debe mapear a num_predict para Ollama
                 ], function ($delta) use (&$reply, $flush) {
                     $reply .= $delta;
                     echo $delta;
@@ -124,28 +124,38 @@ class ChatStreamController extends Controller
             }
 
             // Guardar mensaje del asistente + métricas
+            $tokensIn = (int) ceil(mb_strlen($context) / 4);
+            $tokensOut = (int) ceil(mb_strlen($reply) / 4);
+
             Message::create([
                 'conversation_id' => $conversation->id,
                 'organization_id' => $conversation->organization_id,
-                'role'            => 'assistant',
-                'content'         => trim($reply) !== '' ? $reply : "No puedo responder con la información disponible.",
-                'meta'            => ['citations' => $this->titlesOnly($hits)],
+                'role' => 'assistant',
+                'content' => trim($reply) !== '' ? $reply : "No puedo responder con la información disponible.",
+                'meta' => [
+                    'citations' => $this->titlesOnly($hits),
+                    'tokens_in' => $tokensIn,
+                    'tokens_out' => $tokensOut,
+                    'model' => $model ?? 'unknown'
+                ],
             ]);
 
             $dur = (int) round((microtime(true) - $t0) * 1000);
+            /*
             AnalyticsEvent::create([
                 'organization_id' => $conversation->organization_id,
                 'conversation_id' => $conversation->id,
-                'provider'        => $provider,
-                'model'           => $model ?? 'unknown',
-                'duration_ms'     => $dur,
-                'tokens_in'       => (int) ceil(mb_strlen($context) / 4),
-                'tokens_out'      => (int) ceil(mb_strlen($reply)   / 4),
+                'provider' => $provider,
+                'model' => $model ?? 'unknown',
+                'duration_ms' => $dur,
+                'tokens_in' => (int) ceil(mb_strlen($context) / 4),
+                'tokens_out' => (int) ceil(mb_strlen($reply) / 4),
             ]);
+            */
         }, 200, [
-            'Content-Type'      => 'text/plain; charset=utf-8',
+            'Content-Type' => 'text/plain; charset=utf-8',
             'X-Accel-Buffering' => 'no',
-            'Cache-Control'     => 'no-cache',
+            'Cache-Control' => 'no-cache',
         ]);
     }
 
@@ -157,7 +167,7 @@ class ChatStreamController extends Controller
         $lines = ["Según tus fuentes encontré:"];
         foreach (array_slice($hits, 0, 3) as $h) {
             $title = $h['metadata']['title'] ?? ($h['metadata']['file'] ?? 'Fuente');
-            $txt   = trim(mb_strimwidth(preg_replace('/\s+/', ' ', $h['content']), 0, 240, '…'));
+            $txt = trim(mb_strimwidth(preg_replace('/\s+/', ' ', $h['content']), 0, 240, '…'));
             $lines[] = "• {$title}: {$txt}";
         }
         return implode("\n", $lines);

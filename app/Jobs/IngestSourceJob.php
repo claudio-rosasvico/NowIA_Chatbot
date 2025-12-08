@@ -51,7 +51,7 @@ class IngestSourceJob implements ShouldQueue
 
                 case 'pdf':
                     // nuestro extractor acepta ruta relativa (disk public) o absoluta
-                    $res  = $pdf->extract($source->storage_path);
+                    $res = $pdf->extract($source->storage_path);
                     $text = $res['text'];
                     $meta = array_merge($meta, $res['meta'] ?? [], ['from' => 'pdf']);
                     break;
@@ -62,12 +62,13 @@ class IngestSourceJob implements ShouldQueue
                     $ctype = null;
                     try {
                         $head = Http::timeout(8)->head($source->url);
-                        if ($head->ok()) $ctype = strtolower($head->header('Content-Type') ?? '');
+                        if ($head->ok())
+                            $ctype = strtolower($head->header('Content-Type') ?? '');
                     } catch (Throwable $e) { /* ignoramos */
                     }
 
                     if ($looksPdf || ($ctype && str_contains($ctype, 'pdf'))) {
-                        $res  = $pdf->extract($source->url);
+                        $res = $pdf->extract($source->url);
                         $text = $res['text'];
                         $meta = array_merge($meta, $res['meta'] ?? [], ['from' => 'url-pdf']);
                     } else {
@@ -83,31 +84,40 @@ class IngestSourceJob implements ShouldQueue
             }
 
             if (trim($text) === '') {
+                \Log::warning("IngestSourceJob: Text is empty for source {$source->id}");
                 $source->update(['status' => 'error', 'error' => 'Sin texto extraído']);
                 return;
             }
 
+            // Sanitización UTF-8 agresiva para evitar fallos en regex
+            $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+            // Eliminar caracteres de control nulos explícitamente
+            $text = str_replace("\0", "", $text);
+
             // Chunking
             $pieces = $chunker->make($text, 900, 120);
+            \Log::info("IngestSourceJob: Extracted " . strlen($text) . " chars. Generated " . count($pieces) . " chunks for source {$source->id}");
 
             $ids = [];
             foreach ($pieces as $i => $c) {
                 $kc = \App\Models\KnowledgeChunk::create([
                     'organization_id' => $source->organization_id,
-                    'source_id'       => $source->id,
-                    'position'        => $i + 1,
-                    'content'         => $c,
-                    'metadata'        => $meta,
+                    'source_id' => $source->id,
+                    'position' => $i + 1,
+                    'content' => $c,
+                    'metadata' => $meta,
                 ]);
                 $ids[] = $kc->id;
             }
+
+            \Log::info("IngestSourceJob: Inserted " . count($ids) . " DB records for source {$source->id}");
 
             // Encolar embeddings
             foreach ($ids as $id) {
                 EmbedChunkJob::dispatch($id)->onQueue('embeddings');
             }
             $source->update([
-                'status'       => 'embedding',
+                'status' => 'embedding',
                 'chunks_count' => count($ids),
                 'embedded_count' => 0,
             ]);
@@ -117,16 +127,17 @@ class IngestSourceJob implements ShouldQueue
             if (Schema::hasColumn('sources', 'chunks_count')) {
                 $update['chunks_count'] = count($ids);
             }
-            $source->update(['status'=>'error','error'=>mb_strimwidth($e->getMessage(),0,240,'…')]);
+            $source->update($update);
+
         } catch (Throwable $e) {
             \Log::error('IngestSourceJob failed', [
                 'source_id' => $this->sourceId,
-                'error'     => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             $source->update([
                 'status' => 'error',
-                'error'  => mb_strimwidth($e->getMessage(), 0, 240, '…'),
+                'error' => mb_strimwidth($e->getMessage(), 0, 240, '…'),
             ]);
         }
     }

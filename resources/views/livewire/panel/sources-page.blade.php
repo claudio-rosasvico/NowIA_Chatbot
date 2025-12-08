@@ -38,6 +38,7 @@
                                 <div wire:key="type-pdf">
                                     <label class="form-label">Archivo PDF</label>
                                     <input type="file" class="form-control" wire:model="pdf" accept="application/pdf">
+                                    <div class="form-text">Máximo 20MB.</div>
                                     @error('pdf')
                                         <div class="text-danger small">{{ $message }}</div>
                                     @enderror
@@ -68,61 +69,47 @@
                                     <th>#</th>
                                     <th>Título</th>
                                     <th>Tipo</th>
-                                    <th>Estado</th>
-                                    <th>Progreso</th>
+                                    <th>Estado / Progreso</th>
                                     <th>Acciones</th>
 
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody wire:poll.5s>
                                 @forelse ($sources as $s)
                                     <tr>
                                         <td>{{ $s->id }}</td>
                                         <td>{{ $s->title ?? '—' }}</td>
                                         <td><span class="badge bg-secondary">{{ $s->type }}</span></td>
                                         <td>
-                                            @php
-                                                $map = [
-                                                    'ready' => 'success',
-                                                    'processing' => 'warning',
-                                                    'queued' => 'secondary',
-                                                    'embedding' => 'info',
-                                                    'error' => 'danger',
-                                                ];
-                                                $color = $map[$s->status] ?? 'secondary';
-                                            @endphp
-                                            <span class="badge text-bg-{{ $color }}">{{ $s->status }}</span>
-                                        </td>
-                                        <td style="min-width:160px">
-                                            @php
-                                                $cc = (int) ($s->chunks_count ?? 0);
-                                                $ec = (int) ($s->embedded_count ?? 0);
-                                                $pct = $cc > 0 ? min(100, (int) round(($ec * 100) / $cc)) : 0;
-                                                $badge =
-                                                    $s->status === 'ready'
-                                                        ? 'success'
-                                                        : ($s->status === 'error'
-                                                            ? 'danger'
-                                                            : 'warning');
-                                            @endphp
-                                            <div class="progress" role="progressbar" aria-valuenow="{{ $pct }}"
-                                                aria-valuemin="0" aria-valuemax="100">
-                                                <div class="progress-bar bg-{{ $badge }}"
-                                                    style="width: {{ $pct }}%">{{ $pct }}%</div>
-                                            </div>
-                                            @if (!empty($s->error))
+                                            @if ($s->status === 'ready')
+                                                <span class="badge text-bg-success">Ready</span>
+                                            @elseif($s->status === 'error')
+                                                <span class="badge text-bg-danger">Error</span>
                                                 <div class="text-danger small mt-1">{{ $s->error }}</div>
+                                            @else
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                        <span class="visually-hidden">Loading...</span>
+                                                    </div>
+                                                    <span class="text-muted small">Procesando...</span>
+                                                </div>
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($s->status !== 'ready')
-                                                <button wire:click="process({{ $s->id }})"
-                                                    class="btn btn-sm btn-outline-primary">
-                                                    Procesar
+                                            <div class="d-flex gap-2">
+                                                @if ($s->status !== 'ready')
+                                                    <button wire:click="process({{ $s->id }})"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="Reintentar">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                @endif
+                                                <button wire:click="delete({{ $s->id }})"
+                                                    wire:confirm="¿Estás seguro de eliminar esta fuente?"
+                                                    class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
                                                 </button>
-                                            @else
-                                                <span class="text-muted small">Procesada</span>
-                                            @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty

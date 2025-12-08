@@ -1,3 +1,73 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+    --primary-color: #18252d; /* Exact NowIA match: rgb(24, 37, 45) */
+    --secondary-color: #f99f13; /* Exact NowIA match: rgb(249, 159, 19) */
+    --text-color: #ffffff; /* White text */
+    --bg-color: #18252d; /* Match body background to primary */
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Typography Overrides */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* Custom Utilities based on brand */
+.bg-brand-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.bg-brand-secondary {
+    background-color: var(--secondary-color) !important;
+}
+
+.text-brand-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-brand-secondary {
+    color: var(--secondary-color) !important;
+}
+
+/* Bootstrap Button Overrides */
+.btn-primary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: #000; /* Contrast for orange */
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background-color: #e08e0b;
+    border-color: #d6850a;
+    color: #000;
+}
+
+.card {
+    background-color: var(--primary-color);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.form-control {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.form-control:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--secondary-color);
+    color: var(--text-color);
+    box-shadow: 0 0 0 0.25rem rgba(249, 159, 19, 0.25);
+}

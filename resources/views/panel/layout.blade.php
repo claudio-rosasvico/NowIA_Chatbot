@@ -62,6 +62,10 @@
                 <div class="d-flex align-items-center gap-2">
                     <h1 class="h5 mb-0">@yield('title', 'Panel')</h1>
                     @yield('actions')
+
+                    @if(auth()->check() && auth()->user()->is_super_admin)
+                        <livewire:panel.admin-org-switcher />
+                    @endif
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="text-muted small d-none d-md-inline">{{ auth()->user()->name ?? '' }}</span>
@@ -95,8 +99,7 @@
                     <div class="toast-body">
                         <i class="bi bi-check2-circle me-1"></i> {{ session('ok') }}
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
-                        data-bs-dismiss="toast"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             </div>
         @endif
@@ -106,8 +109,7 @@
                     <div class="toast-body">
                         <i class="bi bi-exclamation-triangle me-1"></i> {{ session('error') }}
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
-                        data-bs-dismiss="toast"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             </div>
         @endif

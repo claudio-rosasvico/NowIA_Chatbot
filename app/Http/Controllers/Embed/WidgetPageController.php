@@ -16,18 +16,20 @@ class WidgetPageController extends Controller
         // inyectá org en contexto por si algo lo requiere
         with_org($bot->organization_id, function () {});
 
-        $cfg  = (array)($bot->config ?? []);
-        $pres = (array)($cfg['presentation'] ?? []);
-        $theme = (array)($bot->embed_theme ?? []);
+        $cfg = (array) ($bot->config ?? []);
+        $pres = (array) ($cfg['presentation'] ?? []);
+        $theme = (array) ($bot->embed_theme ?? []);
 
         return response()
             ->view('embed.widget', [
-                'botName'       => $bot->name,
-                'publicKey'     => $publicKey,
-                'welcomeText'   => (string)($pres['welcome_text'] ?? '¡Hola! ¿En qué te ayudo?'),
-                'suggested'     => (array) ($pres['suggested'] ?? []),
-                'primary'       => (string)($theme['primary'] ?? '#2563eb'),
-                'rounded'       => (bool)  ($theme['rounded'] ?? true),
+                'botName' => $bot->name,
+                'publicKey' => $publicKey,
+                'welcomeText' => (string) ($pres['welcome_text'] ?? '¡Hola! ¿En qué te ayudo?'),
+                'suggested' => (array) ($pres['suggested'] ?? []),
+                'primary' => (string) ($theme['primary'] ?? '#2563eb'),
+                'secondary' => (string) ($theme['secondary'] ?? '#ffffff'),
+                'logo' => (string) ($theme['logo'] ?? ''),
+                'rounded' => (bool) ($theme['rounded'] ?? true),
             ])
             ->header('X-Frame-Options', 'ALLOWALL'); // permitir embeber
     }

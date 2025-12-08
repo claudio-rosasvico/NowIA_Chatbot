@@ -7,6 +7,7 @@
     <title>{{ $title ?? 'Panel' }} · {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="{{ asset('css/brand.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
 <body>
@@ -18,6 +19,9 @@
         </a>
 
         <div class="ms-auto d-flex align-items-center gap-2">
+            @if(auth()->check() && auth()->user()->is_super_admin)
+                <livewire:panel.admin-org-switcher />
+            @endif
             <span class="text-muted small d-none d-md-inline">Org: {{ optional(current_org())->name ?? '—' }}</span>
             <a class="btn btn-sm btn-outline-primary" href="{{ route('panel.dashboard') }}">Mi cuenta</a>
             <form method="POST" action="{{ route('logout') }}" class="d-inline">@csrf
@@ -34,9 +38,14 @@
                         ['Panel', route('panel.dashboard'), request()->routeIs('panel.dashboard')],
                         ['Fuentes', route('panel.sources'), request()->routeIs('panel.sources')],
                         ['Bots', route('panel.bots'), request()->routeIs('panel.bots')],
+                        ['Chat', route('chat'), request()->routeIs('chat')],
                         ['Conversaciones', route('panel.conversations'), request()->routeIs('panel.conversations*')],
-                        ['Métricas', route('panel.metrics'), request()->routeIs('panel.metrics')],
                     ];
+
+                    if (auth()->user()->is_super_admin) {
+                        $nav[] = ['Métricas', route('admin.metrics'), request()->routeIs('admin.metrics')];
+                        $nav[] = ['Administrador', route('admin.index'), request()->routeIs('admin.index')];
+                    }
                 @endphp
                 <div class="vstack gap-1">
                     @foreach ($nav as [$label, $href, $active])

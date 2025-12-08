@@ -27,10 +27,21 @@ class WidgetScriptController extends Controller
                 return $this->js('// widget.js: el bot no es de canal web', 400);
             }
 
-            $theme    = (array) ($bot->embed_theme ?? []);
-            $primary  = (string) ($theme['primary']  ?? '#2563eb');
+            // Validación de Dominio (Security)
+            $cfg = $bot->config ?? [];
+            $allowed = trim($cfg['allowed_domains'] ?? '');
+            if ($allowed !== '') {
+                $referer = $request->header('Referer');
+                if (!$this->isDomainAllowed($referer, $allowed)) {
+                    // Retornamos script vacío/error en consola pero 200 para no romper la pagina cliente con errores de red feos
+                    return $this->js("console.error('Chatbot Widget: Dominio no autorizado ($referer).');", 200);
+                }
+            }
+
+            $theme = (array) ($bot->embed_theme ?? []);
+            $primary = (string) ($theme['primary'] ?? '#2563eb');
             $position = (string) ($theme['position'] ?? 'br'); // br | bl
-            $rounded  = (bool)   ($theme['rounded']  ?? true);
+            $rounded = (bool) ($theme['rounded'] ?? true);
 
             // Armamos la URL del iframe del chat
             $iframeUrl = route('embed.widget', ['publicKey' => $publicKey]);
@@ -129,5 +140,36 @@ JS;
             'Content-Type' => 'application/javascript; charset=UTF-8',
             'Access-Control-Allow-Origin' => '*',
         ]);
+    }
+
+    /**
+     * Verifica si el referer coincide con alguno de los dominios permitidos.
+     */
+    private function isDomainAllowed(?string $referer, string $allowedStr): bool
+    {
+        if (empty($referer))
+            return false; // Si se exige dominio, referer vacío = bloqueado (postman, curl, direct)
+
+        $host = parse_url($referer, PHP_URL_HOST);
+        if (!$host)
+            return false;
+
+        $host = strtolower($host);
+        $domains = array_map('trim', explode(',', strtolower($allowedStr)));
+
+        foreach ($domains as $d) {
+            if ($d === '')
+                continue;
+            // Coincidencia exacta
+            if ($host === $d)
+                return true;
+            // Coincidencia de subdominio (ej: allowed "mysite.com" matches "app.mysite.com"?)
+            // Normalmente "mysite.com" NO incluye subdominios salvo que sea explícito. 
+            // Pero para facilidad, si el usuario pone "mysite.com", permitiremos "*.mysite.com"
+            if (str_ends_with($host, '.' . $d))
+                return true;
+        }
+
+        return false;
     }
 }

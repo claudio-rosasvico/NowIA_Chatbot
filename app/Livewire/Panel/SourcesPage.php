@@ -60,7 +60,7 @@ class SourcesPage extends Component
         IngestSourceJob::dispatch($s->id);
 
         session()->flash('ok', 'Fuente encolada para procesar.');
-        $this->reset(['title','text_content','url','pdf']);
+        $this->reset(['title','text_content','url','pdf', 'type']);
         $this->type = 'text';
         $this->resetPage(); // vuelve a la página 1 de la paginación
     }
@@ -71,6 +71,19 @@ class SourcesPage extends Component
         session()->flash('ok', 'Procesamiento re-enviado a la cola.');
     }
 
+    public function delete(int $id): void
+    {
+        $s = Source::findOrFail($id);
+        // Borrar chunks
+        \App\Models\KnowledgeChunk::where('source_id', $s->id)->delete();
+        // Borrar archivo si es PDF (opcional, si querés limpiar storage)
+        if ($s->type === 'pdf' && $s->storage_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($s->storage_path);
+        }
+        $s->delete();
+        session()->flash('ok', 'Fuente eliminada correctamente.');
+    }
+
     public function render()
     {
         // si querés el conteo de chunks, podés sumar ->withCount('chunks')
@@ -79,4 +92,15 @@ class SourcesPage extends Component
         return view('livewire.panel.sources-page', compact('sources'))
         ->layout('panel.layout', ['title' => 'Fuentes']);
     }
+
+    protected $messages = [
+        'title.max' => 'El título no puede superar los 160 caracteres.',
+        'text_content.required' => 'Debes ingresar el contenido del texto.',
+        'text_content.min' => 'El texto es muy corto (mínimo 10 caracteres).',
+        'url.required' => 'La URL es obligatoria.',
+        'url.url' => 'El formato de la URL no es válido.',
+        'pdf.required' => 'Debes seleccionar un archivo PDF.',
+        'pdf.mimes' => 'El archivo debe ser un PDF.',
+        'pdf.max' => 'El archivo PDF no puede pesar más de 20MB.',
+    ];
 }

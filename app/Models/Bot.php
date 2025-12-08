@@ -5,8 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
+use App\Models\Concerns\BelongsToOrganization;
+
 class Bot extends Model
 {
+    use BelongsToOrganization;
+
     protected $table = 'bots';
 
     protected $fillable = [
@@ -20,8 +24,8 @@ class Bot extends Model
     ];
 
     protected $casts = [
-        'is_default'  => 'boolean',
-        'config'      => 'array',
+        'is_default' => 'boolean',
+        'config' => 'array',
         'embed_theme' => 'array',
     ];
 

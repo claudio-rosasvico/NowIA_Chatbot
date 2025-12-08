@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 
 class BotsIndex extends Component
 {
+    use \Livewire\WithFileUploads;
+
     public $items = [];
 
     // Form
@@ -31,8 +33,13 @@ class BotsIndex extends Component
 
     // Tema
     public string $theme_primary = '#2563eb';
+    public string $theme_secondary = '#ffffff'; // Novedad
+    public $logo; // Propiedad para el archivo (TemporaryUploadedFile)
+    public $currentLogo; // Para mostrar la existing
     public string $theme_position = 'br'; // br | bl
-    public bool   $theme_rounded = true;
+    public bool $theme_rounded = true;
+    // Seguridad
+    public string $allowed_domains = '';
 
     public function mount(): void
     {
@@ -58,24 +65,27 @@ class BotsIndex extends Component
         $this->editId = $b->id;
         $this->name = $b->name;
         $this->channel = $b->channel;
-        $this->is_default = (bool)$b->is_default;
+        $this->is_default = (bool) $b->is_default;
 
         $cfg = (array) ($b->config ?? []);
-        $this->system_prompt  = (string)($cfg['system_prompt'] ?? '');
-        $this->temperature    = (float) ($cfg['temperature'] ?? 0.2);
-        $this->max_tokens     = (int)   ($cfg['max_tokens'] ?? 350);
-        $this->language       = (string)($cfg['language'] ?? 'es');
-        $this->citations      = (bool)  ($cfg['citations'] ?? false);
-        $this->retrieval_mode = (string)($cfg['retrieval_mode'] ?? 'semantic');
+        $this->system_prompt = (string) ($cfg['system_prompt'] ?? '');
+        $this->temperature = (float) ($cfg['temperature'] ?? 0.2);
+        $this->max_tokens = (int) ($cfg['max_tokens'] ?? 350);
+        $this->language = (string) ($cfg['language'] ?? 'es');
+        $this->citations = (bool) ($cfg['citations'] ?? false);
+        $this->retrieval_mode = (string) ($cfg['retrieval_mode'] ?? 'semantic');
+        $this->allowed_domains = (string) ($cfg['allowed_domains'] ?? '');
 
         $pres = (array) ($cfg['presentation'] ?? []);
-        $this->welcome_text = (string)($pres['welcome_text'] ?? '');
-        $this->suggested    = implode(', ', (array)($pres['suggested'] ?? []));
+        $this->welcome_text = (string) ($pres['welcome_text'] ?? '');
+        $this->suggested = implode(', ', (array) ($pres['suggested'] ?? []));
 
         $theme = (array) ($b->embed_theme ?? []);
-        $this->theme_primary  = (string)($theme['primary'] ?? '#2563eb');
-        $this->theme_position = (string)($theme['position'] ?? 'br');
-        $this->theme_rounded  = (bool)  ($theme['rounded'] ?? true);
+        $this->theme_primary = (string) ($theme['primary'] ?? '#2563eb');
+        $this->theme_secondary = (string) ($theme['secondary'] ?? '#ffffff');
+        $this->currentLogo = (string) ($theme['logo'] ?? '');
+        $this->theme_position = (string) ($theme['position'] ?? 'br');
+        $this->theme_rounded = (bool) ($theme['rounded'] ?? true);
 
         $this->token = '';
         if ($this->channel === 'telegram') {
@@ -90,21 +100,24 @@ class BotsIndex extends Component
     public function save(): void
     {
         $rules = [
-            'name'           => 'required|string|max:100',
-            'channel'        => 'required|in:web,telegram,whatsapp',
-            'temperature'    => 'numeric|min:0|max:1',
-            'max_tokens'     => 'integer|min:64|max:2048',
-            'language'       => 'required|string|max:10',
+            'name' => 'required|string|max:100',
+            'channel' => 'required|in:web,telegram,whatsapp',
+            'temperature' => 'numeric|min:0|max:1',
+            'max_tokens' => 'integer|min:64|max:2048',
+            'language' => 'required|string|max:10',
             'retrieval_mode' => 'required|in:semantic,keyword',
+            'allowed_domains' => 'nullable|string|max:500',
 
             // Presentación
-            'welcome_text'   => 'nullable|string|max:500',
-            'suggested'      => 'nullable|string|max:500',
+            'welcome_text' => 'nullable|string|max:500',
+            'suggested' => 'nullable|string|max:500',
 
             // Tema
-            'theme_primary'  => 'required|string|max:20',
+            'theme_primary' => 'required|string|max:20',
+            'theme_secondary' => 'nullable|string|max:20',
             'theme_position' => 'required|in:br,bl',
-            'theme_rounded'  => 'boolean',
+            'theme_rounded' => 'boolean',
+            'logo' => 'nullable|image|max:1024', // 1MB Max
         ];
         if ($this->channel === 'telegram') {
             $rules['token'] = 'required|string|max:200';
@@ -113,29 +126,41 @@ class BotsIndex extends Component
         }
         $this->validate($rules);
 
+        // Subida de logo
+        $logoUrl = $this->currentLogo;
+        if ($this->logo) {
+            // Guardar en disco público: public/bots/LOGOS
+            // Usamos storePublicly para generar nombre único
+            $path = $this->logo->store('bots/logos', 'public');
+            $logoUrl = '/storage/' . $path;
+        }
+
         $pres = [
             'welcome_text' => $this->welcome_text,
-            'suggested'    => $this->parseSuggested($this->suggested),
+            'suggested' => $this->parseSuggested($this->suggested),
         ];
         $theme = [
-            'primary'  => $this->theme_primary,
+            'primary' => $this->theme_primary,
+            'secondary' => $this->theme_secondary,
+            'logo' => $logoUrl,
             'position' => $this->theme_position,
-            'rounded'  => (bool)$this->theme_rounded,
+            'rounded' => (bool) $this->theme_rounded,
         ];
 
         $data = [
             'organization_id' => current_org_id(),
-            'name'            => $this->name,
-            'channel'         => $this->channel,
-            'is_default'      => $this->is_default,
+            'name' => $this->name,
+            'channel' => $this->channel,
+            'is_default' => $this->is_default,
             'config' => [
-                'system_prompt'  => $this->system_prompt,
-                'temperature'    => $this->temperature,
-                'max_tokens'     => $this->max_tokens,
-                'language'       => $this->language,
-                'citations'      => $this->citations,
+                'system_prompt' => $this->system_prompt,
+                'temperature' => $this->temperature,
+                'max_tokens' => $this->max_tokens,
+                'language' => $this->language,
+                'citations' => $this->citations,
                 'retrieval_mode' => $this->retrieval_mode,
-                'presentation'   => $pres,
+                'allowed_domains' => $this->allowed_domains,
+                'presentation' => $pres,
             ],
             'embed_theme' => $theme,
         ];
@@ -193,7 +218,8 @@ class BotsIndex extends Component
 
     private function parseSuggested(string $s): array
     {
-        if (trim($s) === '') return [];
+        if (trim($s) === '')
+            return [];
         return array_values(array_filter(array_map(
             fn($x) => trim($x),
             explode(',', $s)
@@ -241,6 +267,7 @@ class BotsIndex extends Component
         $this->language = 'es';
         $this->citations = false;
         $this->retrieval_mode = 'semantic';
+        $this->allowed_domains = '';
         $this->token = '';
 
         // presentación
@@ -248,14 +275,17 @@ class BotsIndex extends Component
         $this->suggested = '';
 
         // tema
-        $this->theme_primary  = '#2563eb';
+        $this->theme_primary = '#2563eb';
+        $this->theme_secondary = '#ffffff';
+        $this->logo = null;
+        $this->currentLogo = '';
         $this->theme_position = 'br';
-        $this->theme_rounded  = true;
+        $this->theme_rounded = true;
     }
 
     public function render()
     {
         return view('livewire.panel.bots-index')
-        ->layout('panel.layout', ['title' => 'Bots']);
+            ->layout('panel.layout', ['title' => 'Bots']);
     }
 }
