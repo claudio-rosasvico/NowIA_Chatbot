@@ -6,7 +6,7 @@ services:
     container_name: chatbot_app_prod
     environment:
       APP_ENV: production
-    env_file: .env
+    env_file: .env.production
     depends_on:
       - mysql
       - redis
@@ -18,12 +18,10 @@ services:
     image: nginx:alpine
     container_name: chatbot_nginx_prod
     ports:
-      - "${APP_PORT:-8080}:80"
+      - "${APP_PORT:-8002}:80"
     volumes:
       - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf
-      # Montamos public para que Nginx sirva assets estáticos directamente
-      # Nota: Como app es multi-stage, necesitamos copiar los assets al host o usar un volumen compartido.
-      # Solución simple: volumen compartido entre app y nginx para 'public'
+      # Compartimos los volúmenes de app para acceder a los assets compilados/públicos
     volumes_from:
       - app
     depends_on:
@@ -36,13 +34,13 @@ services:
     image: mysql:8.0
     container_name: chatbot_mysql_prod
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_USER: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
     command: [ "mysqld", "--mysqlx=0" ]
     volumes:
-      - dbdata_prod:/var/lib/mysql
+      - chatbot_dbdata_prod:/var/lib/mysql
     restart: always
     networks:
       - backend
@@ -60,14 +58,15 @@ services:
       dockerfile: ./docker/app/Dockerfile.prod
     container_name: chatbot_queue_prod
     command: php artisan horizon
-    env_file: .env
+    env_file: .env.production
     depends_on: [ app, redis ]
     restart: always
     networks: [ backend ]
 
 networks:
   backend:
-
+    driver: bridge
 
 volumes:
-  dbdata_prod:
+  chatbot_dbdata_prod:
+    driver: local
