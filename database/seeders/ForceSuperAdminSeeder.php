@@ -9,7 +9,7 @@ class ForceSuperAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = 'claudio@nowia.com.ar';
+        $email = 'claudio.rosasvico@gmail.com';
         $user = User::where('email', $email)->first();
 
         if (!$user) {
