@@ -29,6 +29,10 @@ php artisan view:cache
 
 
 # Asegurar permisos de storage y cache (por si migraciones generaron archivos como root)
+# Asegurar carpeta de uploads temporales de Livewire
+mkdir -p /var/www/html/storage/app/livewire-tmp
+
+# Asegurar permisos de storage y cache
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 echo "Iniciando PHP-FPM..."

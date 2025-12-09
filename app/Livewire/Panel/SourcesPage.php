@@ -35,7 +35,7 @@ class SourcesPage extends Component
             ],
             'pdf'  => [
                 'title' => 'nullable|string|max:160',
-                'pdf'   => 'required|file|mimes:pdf|max:20480',
+                'pdf'   => 'required|file|mimes:pdf|max:102400',
             ],
         });
 
@@ -101,6 +101,6 @@ class SourcesPage extends Component
         'url.url' => 'El formato de la URL no es válido.',
         'pdf.required' => 'Debes seleccionar un archivo PDF.',
         'pdf.mimes' => 'El archivo debe ser un PDF.',
-        'pdf.max' => 'El archivo PDF no puede pesar más de 20MB.',
+        'pdf.max' => 'El archivo PDF no puede pesar más de 100MB.',
     ];
 }

@@ -38,7 +38,7 @@
                                 <div wire:key="type-pdf">
                                     <label class="form-label">Archivo PDF</label>
                                     <input type="file" class="form-control" wire:model="pdf" accept="application/pdf">
-                                    <div class="form-text">Máximo 20MB.</div>
+                                    <div class="form-text">Máximo 100MB.</div>
                                     @error('pdf')
                                         <div class="text-danger small">{{ $message }}</div>
                                     @enderror

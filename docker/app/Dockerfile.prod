@@ -58,8 +58,8 @@ RUN chmod +x /usr/local/bin/start.sh
 # Config PHP básica
 RUN { \
     echo "memory_limit=512M"; \
-    echo "upload_max_filesize=32M"; \
-    echo "post_max_size=32M"; \
+    echo "upload_max_filesize=100M"; \
+    echo "post_max_size=100M"; \
     echo "expose_php=off"; \
     echo "opcache.enable=1"; \
     echo "opcache.validate_timestamps=0"; \
