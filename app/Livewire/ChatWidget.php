@@ -13,9 +13,17 @@ class ChatWidget extends Component
     public ?int $conversationId = null;
     public array $messages = [];
     public string $input = '';
+    public bool $hasSources = true;
 
     public function mount(\App\Services\ChatService $chat)
     {
+        // 1. Verificar si hay fuentes
+        $hasSources = \App\Models\Source::where('organization_id', current_org_id())->exists();
+        if (!$hasSources) {
+            $this->hasSources = false;
+            return;
+        }
+
         if ($this->conversationId) {
             $this->loadMessages();
             return;
@@ -25,10 +33,10 @@ class ChatWidget extends Component
         $bot = ensure_default_bot('web');
 
         $conv = Conversation::create([
-            'channel'          => 'web',
-            'started_at'       => now(),
-            'organization_id'  => current_org_id(),
-            'bot_id'           => $bot->id,   // 👈 clave
+            'channel' => 'web',
+            'started_at' => now(),
+            'organization_id' => current_org_id(),
+            'bot_id' => $bot->id,   // 👈 clave
         ]);
 
         $this->conversationId = $conv->id;
@@ -36,21 +44,21 @@ class ChatWidget extends Component
     }
 
     public function send(ChatService $chat)
-    {
-        {
-        $text = trim($this->input);
-        if ($text === '') return;
+    { {
+            $text = trim($this->input);
+            if ($text === '')
+                return;
 
-        $resp = $chat->handle($this->conversationId, $text, 'web');
-        $this->conversationId = $resp['conversation_id'];
+            $resp = $chat->handle($this->conversationId, $text, 'web');
+            $this->conversationId = $resp['conversation_id'];
 
-        $lastTwo = array_slice($resp['messages'], -2);
-        foreach ($lastTwo as $m) {
-            $this->messages[] = ['role' => $m['role'], 'content' => $m['content']];
+            $lastTwo = array_slice($resp['messages'], -2);
+            foreach ($lastTwo as $m) {
+                $this->messages[] = ['role' => $m['role'], 'content' => $m['content']];
+            }
+
+            $this->input = '';
         }
-
-        $this->input = '';
-    }
     }
 
     #[On('refreshMessages')]
