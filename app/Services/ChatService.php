@@ -9,6 +9,7 @@ use App\Models\Bot;
 
 class ChatService
 {
+    public $sin_fuente = false;
     public function __construct(
         private RetrievalService $retrieval,
         private LlmGateway $llm,
@@ -65,7 +66,7 @@ class ChatService
         $citations = (bool)  ($cfg['citations'] ?? false);
 
         // Reglas del system prompt
-        $rules = "- Usa SOLO el CONTEXTO proporcionado.\n- Si la info no está, dilo.\n- Responde en {$lang} con estilo claro y amable.";
+        $rules = "- Usa SOLO el CONTEXTO proporcionado.\n- Si la info no está, dilo.\n- Responde en {$lang} con estilo claro y amable. \n No utilices letra negrita.";
         if ($citations) {
             $rules .= "\n- Cuando corresponda, incluye una breve referencia entre corchetes.";
         }
@@ -73,7 +74,12 @@ class ChatService
 
         // Si no hay contexto: respuesta suave sin listar “fuentes”
         if (trim($context) === '') {
-            $reply = "No encuentro eso en tus fuentes ahora mismo. ¿Querés que busque aproximaciones o preferís cargar nuevo material?";
+            if($this->sin_fuente == true){
+                $reply = "No encuentro eso en las fuentes ahora mismo. Mejor utiliza nuestras vías de comunicación para resolver tu consulta.";
+            }else{
+                $this->sin_fuente = true;
+                $reply = "No encuentro eso en las fuentes ahora mismo. ¿Querés que busque aproximaciones?";
+            }
             $assistantMsg = Message::create([
                 'conversation_id' => $conversation->id,
                 'role'            => 'assistant',

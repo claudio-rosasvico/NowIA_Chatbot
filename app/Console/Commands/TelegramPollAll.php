@@ -4,65 +4,137 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use App\Models\TelegramBot;
+use App\Models\ChannelIntegration;
 use App\Models\Conversation;
-use App\Models\Message;
 use App\Services\ChatService;
+// Use Bot explicitly to avoid helper dependency issues if autoload fails
+use App\Models\Bot;
 
 class TelegramPollAll extends Command
 {
     protected $signature = 'telegram:poll-all {--timeout=25}';
-    protected $description = 'Long polling para TODOS los bots de Telegram habilitados';
+    protected $description = 'Long polling para TODOS los bots de Telegram habilitados (usando ChannelIntegration)';
 
     public function handle(ChatService $chat): int
     {
-        $timeout = (int)$this->option('timeout');
+        $timeout = (int) $this->option('timeout');
+
+        $this->info("Iniciando poll-all de Telegram...");
 
         while (true) {
-            $bots = TelegramBot::where('is_enabled', true)->get();
-            foreach ($bots as $bot) {
-                $offset = $bot->last_update_id ? $bot->last_update_id + 1 : null;
-                $url = "https://api.telegram.org/bot{$bot->token}/getUpdates";
-                $res = Http::retry(2, 200)->get($url, array_filter([
-                    'timeout' => $timeout,
-                    'offset'  => $offset,
-                ]));
-                if (!$res->ok()) continue;
+            // Iterar sobre integraciones activas
+            $integrations = ChannelIntegration::where('channel', 'telegram')
+                ->where('enabled', true)
+                ->get();
 
-                $updates = $res->json('result') ?? [];
-                foreach ($updates as $u) {
-                    $bot->last_update_id = $u['update_id'];
-                    $bot->save();
+            foreach ($integrations as $ci) {
+                try {
+                    $cfg = $ci->config ?? [];
+                    $token = $cfg['token'] ?? null;
 
-                    $msg = $u['message'] ?? $u['edited_message'] ?? null;
-                    if (!$msg) continue;
+                    if (!$token)
+                        continue;
 
-                    $chatId = $msg['chat']['id'];
-                    $text   = trim($msg['text'] ?? '');
-                    if ($text === '') continue;
+                    $offset = isset($cfg['last_update_id']) ? $cfg['last_update_id'] + 1 : null;
+                    $url = "https://api.telegram.org/bot{$token}/getUpdates";
 
-                    // conversación por chat+org
-                    $conv = Conversation::firstOrCreate([
-                        'organization_id' => $bot->organization_id,
-                        'channel' => 'telegram',
-                        'external_id' => (string)$chatId,
-                    ], [
-                        'started_at' => now(),
-                        'bot_id'     => $bot->bot_id ?? ensure_default_bot('telegram')->id,
-                    ]);
+                    try {
+                        $res = Http::timeout($timeout + 5)->get($url, array_filter([
+                            'timeout' => $timeout,
+                            'offset' => $offset,
+                        ]));
+                    } catch (\Exception $e) {
+                        // Si falla conexión, ignoramos este ciclo
+                        continue;
+                    }
 
-                    // Enviar a tu flujo normal (sin streaming en telegram por ahora)
-                    $resp = $chat->handle($conv->id, $text, 'telegram');
+                    if (!$res->ok())
+                        continue;
 
-                    // Responder al chat
-                    $reply = collect($resp['messages'])->last()['content'] ?? '…';
-                    $sendUrl = "https://api.telegram.org/bot{$bot->token}/sendMessage";
-                    Http::post($sendUrl, [
-                        'chat_id' => $chatId,
-                        'text'    => $reply,
-                    ]);
+                    $updates = $res->json('result') ?? [];
+                    $maxUpdateId = 0;
+
+                    foreach ($updates as $u) {
+                        try {
+                            $uId = $u['update_id'];
+                            $maxUpdateId = max($maxUpdateId, $uId);
+
+                            $msg = $u['message'] ?? $u['edited_message'] ?? null;
+                            if (!$msg)
+                                continue;
+
+                            $chatId = $msg['chat']['id'];
+                            $text = trim($msg['text'] ?? '');
+                            if ($text === '')
+                                continue;
+
+                            // Resolución del Bot protegida
+                            // Intentamos usar el helper, si no manual
+                            if (function_exists('ensure_default_bot')) {
+                                $botModel = ensure_default_bot('telegram', $ci->organization_id);
+                            } else {
+                                $botModel = Bot::firstOrCreate([
+                                    'organization_id' => $ci->organization_id,
+                                    'channel' => 'telegram',
+                                    'name' => 'Telegram Default',
+                                ], [
+                                    'is_default' => true,
+                                    'config' => [
+                                        'language' => 'es',
+                                        'system_prompt' => 'Eres un asistente útil.',
+                                        'temperature' => 0.5,
+                                        'max_tokens' => 500,
+                                        'retrieval_mode' => 'semantic',
+                                    ]
+                                ]);
+                            }
+
+                            // Conversación
+                            $conv = Conversation::firstOrCreate([
+                                'organization_id' => $ci->organization_id,
+                                'channel' => 'telegram',
+                                'external_id' => (string) $chatId,
+                            ], [
+                                'started_at' => now(),
+                                'bot_id' => $botModel->id,
+                            ]);
+
+                            // Chat Service Response
+                            $resp = $chat->handle($conv->id, $text, 'telegram');
+                            $reply = collect($resp['messages'])->last()['content'] ?? '…';
+
+                            // Enviar respuesta (siempre try-catch para evitar crash por error de red en envio)
+                            try {
+                                Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+                                    'chat_id' => $chatId,
+                                    'text' => $reply,
+                                ]);
+                            } catch (\Exception $sendEx) {
+                                \Log::error("Telegram sendMessage error: " . $sendEx->getMessage());
+                            }
+
+                        } catch (\Throwable $t) {
+                            \Log::error("TelegramPollAll update processing error: " . $t->getMessage());
+                        }
+                    }
+
+                    // Guardar offset
+                    if (!empty($updates)) {
+                        $currentOffset = $cfg['last_update_id'] ?? 0;
+                        if ($maxUpdateId > $currentOffset) {
+                            $cfg['last_update_id'] = $maxUpdateId;
+                            $ci->config = $cfg;
+                            $ci->save();
+                        }
+                    }
+
+                } catch (\Throwable $outer) {
+                    \Log::error("TelegramPollAll integration loop error: " . $outer->getMessage());
+                    // Dormir un poco si hay error grave para evitar spam de logs
+                    sleep(1);
                 }
             }
+            sleep(1);
         }
 
         return self::SUCCESS;

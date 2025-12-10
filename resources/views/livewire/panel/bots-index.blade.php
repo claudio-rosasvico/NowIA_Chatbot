@@ -24,7 +24,7 @@
             <tbody>
                 @forelse($items as $b)
                     @php $cfg = $b->config ?? []; @endphp
-                    <tr>
+                    <tr wire:key="bot-{{ $b->id }}">
                         <td>{{ $b->name }}</td>
                         <td class="text-capitalize">{{ $b->channel }}</td>
                         <td>{!! $b->is_default ? '<span class="badge text-bg-success">Sí</span>' : '—' !!}</td>
@@ -71,21 +71,21 @@
             </tbody>
         </table>
     </div>
-    <script defer src="http://localhost:8080/widget.js?key=ahTrWM2l1ziDfLQsiRHJDdCnR0pS29gTVCoDzWPW"></script>
 
     @if ($modal)
         <div>
             <div class="modal fade show d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,.3)">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
+                    <div class="modal-content bg-dark text-white border-secondary">
                         <form wire:submit.prevent="save">
-                            <div class="modal-header">
+                            <div class="modal-header border-secondary">
                                 <h5 class="modal-title">{{ $editId ? 'Editar bot' : 'Nuevo bot' }}</h5>
-                                <button type="button" class="btn-close" wire:click="$set('modal', false)"></button>
+                                <button type="button" class="btn-close btn-close-white"
+                                    wire:click="$set('modal', false)"></button>
                             </div>
 
                             <div class="modal-body">
-                                <ul class="nav nav-tabs mb-3" role="tablist">
+                                <ul class="nav nav-tabs mb-3 border-secondary" role="tablist">
                                     <li class="nav-item">
                                         <a class="nav-link active" data-bs-toggle="tab" href="#tab-core"
                                             role="tab">Básico</a>
@@ -94,6 +94,9 @@
                                         <a class="nav-link" data-bs-toggle="tab" href="#tab-pres"
                                             role="tab">Presentación</a>
                                     </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#tab-adv" role="tab">Avanzado</a>
+                                    </li>
                                 </ul>
 
                                 <div class="tab-content">
@@ -101,72 +104,71 @@
                                     <div class="tab-pane fade show active" id="tab-core" role="tabpanel">
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label">Nombre</label>
+                                                <label class="form-label">
+                                                    Nombre
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Nombre interno para identificar al bot en el panel."></i>
+                                                </label>
                                                 <input class="form-control" wire:model.defer="name">
+                                                @error('name') <span class="text-danger small">{{ $message }}</span>
+                                                @enderror
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label">Canal</label>
-                                                <select class="form-select" wire:model.defer="channel">
+                                                <label class="form-label">
+                                                    Canal
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Canal donde funcionará el bot (Web, Telegram, WhatsApp)."></i>
+                                                </label>
+                                                <select class="form-select" wire:model.live="channel">
                                                     <option value="web">Web</option>
                                                     <option value="telegram">Telegram</option>
-                                                    <option value="whatsapp">WhatsApp</option>
+                                                    <!-- <option value="whatsapp">WhatsApp</option> -->
                                                 </select>
                                             </div>
                                             <div class="col-md-3 d-flex align-items-end">
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" id="isdef"
                                                         wire:model.defer="is_default">
-                                                    <label class="form-check-label" for="isdef">Default</label>
+                                                    <label class="form-check-label" for="isdef">
+                                                        Default
+                                                        <i class="bi bi-question-circle text-muted ms-1"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Si se activa, será el bot principal para este canal si no se especifica otro."></i>
+                                                    </label>
                                                 </div>
                                             </div>
+                                            @if ($channel === 'telegram')
+                                                <div class="col-12 mt-0">
+                                                    <div class="text-warning small">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                        Para funcionar con el Token general, este bot debe ser
+                                                        <strong>Default</strong>.
+                                                    </div>
+                                                </div>
+                                            @endif
 
                                             <div class="col-12">
-                                                <label class="form-label">Personalidad (system prompt)</label>
+                                                <label class="form-label">
+                                                    Personalidad (system prompt)
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Instrucciones base que definen el comportamiento, tono y reglas del bot."></i>
+                                                </label>
                                                 <textarea class="form-control" rows="4"
                                                     wire:model.defer="system_prompt"></textarea>
+                                                @error('system_prompt') <span
+                                                class="text-danger small">{{ $message }}</span> @enderror
                                             </div>
 
-                                            <div class="col-md-3">
-                                                <label class="form-label">Temperatura</label>
-                                                <input type="number" step="0.1" min="0" max="1" class="form-control"
-                                                    wire:model.defer="temperature">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">Máx. tokens</label>
-                                                <input type="number" min="64" max="2048" class="form-control"
-                                                    wire:model.defer="max_tokens">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">Idioma</label>
-                                                <input class="form-control" wire:model.defer="language" placeholder="es">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">Retrieval</label>
-                                                <select class="form-select" wire:model.defer="retrieval_mode">
-                                                    <option value="semantic">Semántico</option>
-                                                    <option value="keyword">Keyword</option>
-                                                </select>
-                                            </div>
-
-                                            <div class="col-12" @if($channel !== 'web') style="display:none" @endif>
-                                                <label class="form-label">Dominios permitidos (Web)</label>
-                                                <input class="form-control" wire:model.defer="allowed_domains"
-                                                    placeholder="ejemplo.com, app.ejemplo.com (Dejar vacío para permitir todos)">
-                                                <div class="form-text">Separa los dominios con comas. El widget solo
-                                                    funcionará en estas URL.</div>
-                                            </div>
-
-                                            <div class="col-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cit"
-                                                        wire:model.defer="citations">
-                                                    <label class="form-check-label" for="cit">Forzar
-                                                        citas</label>
-                                                </div>
-                                            </div>
-
-                                            <div class="col-9" @if ($channel !== 'telegram') style="display:none" @endif>
-                                                <label class="form-label">Token (Telegram)</label>
+                                            <div class="col-12" @if ($channel !== 'telegram') style="display:none" @endif>
+                                                <label class="form-label">
+                                                    Token (Telegram)
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="El token API proporcionado por @BotFather."></i>
+                                                </label>
                                                 <input type="text" class="form-control" wire:model.defer="token"
                                                     placeholder="123456:ABC...">
                                             </div>
@@ -192,18 +194,33 @@
                                     <div class="tab-pane fade" id="tab-pres" role="tabpanel">
                                         <div class="row g-3">
                                             <div class="col-12">
-                                                <label class="form-label">Mensaje de bienvenida</label>
+                                                <label class="form-label">
+                                                    Mensaje de bienvenida
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Primer mensaje que envía el bot automáticamente al abrir el chat."></i>
+                                                </label>
                                                 <input class="form-control" wire:model.defer="welcome_text"
                                                     placeholder="¡Hola! ¿En qué te ayudo?">
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label">Sugerencias (separadas por coma)</label>
+                                                <label class="form-label">
+                                                    Sugerencias (separadas por coma)
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Botones de preguntas rápidas para el usuario (separadas por coma)."></i>
+                                                </label>
                                                 <input class="form-control" wire:model.defer="suggested"
                                                     placeholder="Cómo puedo guiarte, Horarios de atención, Ubicación, etc.">
                                             </div>
 
                                             <div class="col-md-4">
-                                                <label class="form-label">Color primario</label>
+                                                <label class="form-label">
+                                                    Color primario
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Color principal del widget (botón, encabezado)."></i>
+                                                </label>
                                                 <div class="input-group">
                                                     <input type="color" class="form-control form-control-color"
                                                         wire:model.defer="theme_primary" title="Elegir color">
@@ -212,7 +229,12 @@
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Color secundario</label>
+                                                <label class="form-label">
+                                                    Color secundario
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Color de texto o acentos secundarios."></i>
+                                                </label>
                                                 <div class="input-group">
                                                     <input type="color" class="form-control form-control-color"
                                                         wire:model.defer="theme_secondary" title="Elegir color">
@@ -221,7 +243,12 @@
                                                 </div>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label">Posición botón</label>
+                                                <label class="form-label">
+                                                    Posición botón
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Ubicación del botón flotante en la pantalla."></i>
+                                                </label>
                                                 <select class="form-select" wire:model.defer="theme_position">
                                                     <option value="br">Abajo derecha</option>
                                                     <option value="bl">Abajo izquierda</option>
@@ -229,7 +256,12 @@
                                             </div>
 
                                             <div class="col-12">
-                                                <label class="form-label">Logo de la organización</label>
+                                                <label class="form-label">
+                                                    Logo de la organización
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Imagen que se muestra en el encabezado del chat."></i>
+                                                </label>
                                                 <input type="file" class="form-control" wire:model="logo" accept="image/*">
                                                 <div wire:loading wire:target="logo" class="text-muted small">Subiendo...
                                                 </div>
@@ -252,7 +284,89 @@
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" id="thround"
                                                         wire:model.defer="theme_rounded">
-                                                    <label class="form-check-label" for="thround">Bordes redondeados</label>
+                                                    <label class="form-check-label" for="thround">
+                                                        Bordes redondeados
+                                                        <i class="bi bi-question-circle text-muted ms-1"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Suaviza las esquinas del widget."></i>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Avanzado -->
+                                    <div class="tab-pane fade" id="tab-adv" role="tabpanel">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Temperatura ({{ $temperature }})
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Controla la creatividad. 0 es muy preciso/determinista, 1 es más creativo/aleatorio."></i>
+                                                </label>
+                                                <input type="range" step="0.1" min="0" max="1" class="form-range"
+                                                    wire:model="temperature"> <!-- wire:model live para mostrar valor -->
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Máx. tokens
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Límite máximo de longitud para la respuesta generada."></i>
+                                                </label>
+                                                <input type="number" min="64" max="4096" class="form-control"
+                                                    wire:model.defer="max_tokens">
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Idioma
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Código de idioma (ej: 'es', 'en') para instruir al bot."></i>
+                                                </label>
+                                                <input class="form-control" wire:model.defer="language" placeholder="es">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">
+                                                    Retrieval
+                                                    <i class="bi bi-question-circle text-muted ms-1"
+                                                        data-bs-toggle="tooltip"
+                                                        title="Método de búsqueda en base de conocimiento. Semántico entiende significado, Keyword busca palabras exactas."></i>
+                                                </label>
+                                                <select class="form-select" wire:model.defer="retrieval_mode">
+                                                    <option value="semantic">Semántico</option>
+                                                    <option value="keyword">Keyword</option>
+                                                </select>
+                                            </div>
+
+                                            @if($channel === 'web')
+                                                <div class="col-12">
+                                                    <label class="form-label">
+                                                        Dominios permitidos (Web)
+                                                        <i class="bi bi-question-circle text-muted ms-1"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Lista de dominios donde el widget puede cargarse. Dejar vacío para permitir todos."></i>
+                                                    </label>
+                                                    <input class="form-control" wire:model.defer="allowed_domains"
+                                                        placeholder="ejemplo.com, app.ejemplo.com (Dejar vacío para permitir todos)">
+                                                    <div class="form-text">Separa los dominios con comas.</div>
+                                                    @error('allowed_domains') <span
+                                                    class="text-danger small">{{ $message }}</span> @enderror
+                                                </div>
+                                            @endif
+
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="cit"
+                                                        wire:model.defer="citations">
+                                                    <label class="form-check-label" for="cit">
+                                                        Forzar citas
+                                                        <i class="bi bi-question-circle text-muted ms-1"
+                                                            data-bs-toggle="tooltip"
+                                                            title="Obliga al bot a incluir referencias explícitas a los documentos fuente usados."></i>
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
@@ -261,7 +375,7 @@
                                 </div><!-- /tab-content -->
                             </div>
 
-                            <div class="modal-footer">
+                            <div class="modal-footer border-secondary">
                                 <button class="btn btn-secondary" type="button"
                                     wire:click="$set('modal', false)">Cancelar</button>
                                 <button class="btn btn-primary" type="submit">Guardar</button>

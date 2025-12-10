@@ -27,8 +27,10 @@ class RetrievalService
             if ($mode === 'keyword') {
                 // FULLTEXT o LIKE, PERO con filtro de org
                 return KnowledgeChunk::query()
-                    ->select(['id', 'content', 'metadata'])
-                    ->whereRaw("MATCH(content) AGAINST (? IN NATURAL LANGUAGE MODE)", [$q])
+                    ->join('sources', 'knowledge_chunks.source_id', '=', 'sources.id')
+                    ->whereNull('sources.deleted_at')
+                    ->select(['knowledge_chunks.id', 'knowledge_chunks.content', 'knowledge_chunks.metadata'])
+                    ->whereRaw("MATCH(knowledge_chunks.content) AGAINST (? IN NATURAL LANGUAGE MODE)", [$q])
                     ->limit($k)
                     ->get()
                     ->map(fn($c) => [
@@ -42,27 +44,33 @@ class RetrievalService
             // === SEMÁNTICO ===
             // 1) Obtener embedding de la query
             $queryVec = app(EmbeddingService::class)->embed($q); // array<float>
-            if (!$queryVec) return [];
+            if (!$queryVec)
+                return [];
 
             // 2) Buscar candidatos SOLO de esta org (p.ej top-N por fecha o random) y calcular similitud en PHP
             //    Si tenés muchas filas, hacé un pre-filtro (por ejemplo últimos X días o limit 2000)
             $candidates = KnowledgeChunk::query()
-                ->whereNotNull('embedding')
-                ->limit(2000) // ajustá si hace falta
-                ->get(['id', 'content', 'metadata', 'embedding']);
+                ->join('sources', 'knowledge_chunks.source_id', '=', 'sources.id')
+                ->whereNull('sources.deleted_at') // Verifica que el PADRE esté vivo
+                ->whereNull('knowledge_chunks.deleted_at') // Verifica que el HIJO esté vivo
+                ->whereNotNull('knowledge_chunks.embedding')
+                ->select('knowledge_chunks.id', 'knowledge_chunks.content', 'knowledge_chunks.metadata', 'knowledge_chunks.embedding')
+                ->limit(2000)
+                ->get();
 
             // 3) Rankear por coseno
             $scored = [];
             foreach ($candidates as $c) {
                 $emb = is_string($c->embedding) ? json_decode($c->embedding, true) : $c->embedding;
-                if (!is_array($emb)) continue;
+                if (!is_array($emb))
+                    continue;
 
                 $score = $this->cosine($queryVec, $emb);
                 $scored[] = [
-                    'id'      => $c->id,
+                    'id' => $c->id,
                     'content' => $c->content,
                     'metadata' => (array) $c->metadata,
-                    'score'   => $score,
+                    'score' => $score,
                 ];
             }
 
@@ -76,7 +84,8 @@ class RetrievalService
     protected function fulltextSearch(string $query, int $limit): array
     {
         $q = trim($query);
-        if ($q === '') return [];
+        if ($q === '')
+            return [];
 
         try {
             $rows = DB::select("
@@ -115,7 +124,8 @@ class RetrievalService
     protected function semanticSearch(string $query, int $limit): array
     {
         $q = trim($query);
-        if ($q === '') return [];
+        if ($q === '')
+            return [];
 
         // 1) Vector de la consulta
         $qv = $this->emb->embed($q);
@@ -144,10 +154,11 @@ class RetrievalService
             $meta = is_string($r->metadata) ? json_decode($r->metadata, true) : ($r->metadata ?? []);
             $row = DB::table('knowledge_chunks')->where('id', $r->id)->first(['embedding']);
             $emb = (isset($row) && isset($row->embedding)) ? (is_string($row->embedding) ? json_decode($row->embedding, true) : $row->embedding) : null;
-            if (!$emb || !is_array($emb)) continue;
+            if (!$emb || !is_array($emb))
+                continue;
 
             $cos = $this->cosine($qv, $emb);
-            $ft  = isset($r->ft) ? (float)$r->ft : 0.0;
+            $ft = isset($r->ft) ? (float) $r->ft : 0.0;
 
             // mezcla simple: 70% vector, 30% fulltext normalizado (0..1)
             $score = 0.7 * $cos + 0.3 * $this->sigmoid($ft);
@@ -173,10 +184,11 @@ class RetrievalService
         $n = min(count($a), count($b));
         for ($i = 0; $i < $n; $i++) {
             $dot += $a[$i] * $b[$i];
-            $na  += $a[$i] * $a[$i];
-            $nb  += $b[$i] * $b[$i];
+            $na += $a[$i] * $a[$i];
+            $nb += $b[$i] * $b[$i];
         }
-        if ($na <= 0 || $nb <= 0) return 0.0;
+        if ($na <= 0 || $nb <= 0)
+            return 0.0;
         return $dot / (sqrt($na) * sqrt($nb));
     }
 
@@ -191,8 +203,10 @@ class RetrievalService
         $out = '';
         foreach ($hits as $h) {
             $chunk = trim((string) $h['content']);
-            if ($chunk === '') continue;
-            if (mb_strlen($out) + mb_strlen($chunk) + 2 > $limit) break;
+            if ($chunk === '')
+                continue;
+            if (mb_strlen($out) + mb_strlen($chunk) + 2 > $limit)
+                break;
             $out .= ($out === '' ? '' : "\n\n") . $chunk;
         }
         return $out;

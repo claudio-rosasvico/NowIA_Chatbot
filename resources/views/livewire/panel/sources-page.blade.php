@@ -76,7 +76,7 @@
                             </thead>
                             <tbody wire:poll.5s>
                                 @forelse ($sources as $s)
-                                    <tr>
+                                    <tr wire:key="source-{{ $s->id }}">
                                         <td>{{ $s->id }}</td>
                                         <td>{{ $s->title ?? '—' }}</td>
                                         <td><span class="badge bg-secondary">{{ $s->type }}</span></td>

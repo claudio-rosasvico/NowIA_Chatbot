@@ -74,7 +74,6 @@
       </div>
     </div>
   </div>
-  <script defer src="http://localhost:8080/widget.js?key=wDs4KnmsB36dkVdW0XIyGMn11oAygQ9n1VHIXlB2"></script>
 
 </body>
 

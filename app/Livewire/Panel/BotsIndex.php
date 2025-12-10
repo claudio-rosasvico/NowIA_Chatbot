@@ -105,8 +105,8 @@ class BotsIndex extends Component
             'temperature' => 'numeric|min:0|max:1',
             'max_tokens' => 'integer|min:64|max:2048',
             'language' => 'required|string|max:10',
+            'system_prompt' => 'required|string|max:5000',
             'retrieval_mode' => 'required|in:semantic,keyword',
-            'allowed_domains' => 'nullable|string|max:500',
 
             // Presentación
             'welcome_text' => 'nullable|string|max:500',
@@ -119,12 +119,26 @@ class BotsIndex extends Component
             'theme_rounded' => 'boolean',
             'logo' => 'nullable|image|max:1024', // 1MB Max
         ];
+
+        // Reglas condicionales por canal
         if ($this->channel === 'telegram') {
             $rules['token'] = 'required|string|max:200';
+            $rules['allowed_domains'] = 'nullable|string';
         } else {
-            $rules['token'] = 'nullable|string|max:200';
+            // Web
+            $rules['token'] = 'nullable|string';
+            $rules['allowed_domains'] = 'required|string|max:500';
         }
-        $this->validate($rules);
+
+        // Mensajes personalizados
+        $messages = [
+            'name.required' => 'El nombre del Bot es obligatorio.',
+            'system_prompt.required' => 'La personalidad es obligatoria.',
+            'allowed_domains.required' => 'Los dominios permitidos son obligatorios.',
+            'token.required' => 'El Token de Telegram es obligatorio.',
+        ];
+
+        $this->validate($rules, $messages);
 
         // Subida de logo
         $logoUrl = $this->currentLogo;
