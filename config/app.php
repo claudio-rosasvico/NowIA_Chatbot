@@ -186,6 +186,6 @@ return [
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),
 
-    'logo_url' => env('APP_LOGO_URL', null),
+    'logo_url' => '/images/Logo_azul_fondo_amarillo.png',
 
 ];

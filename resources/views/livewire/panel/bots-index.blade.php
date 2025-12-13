@@ -347,10 +347,10 @@
                                                         Dominios permitidos (Web)
                                                         <i class="bi bi-question-circle text-muted ms-1"
                                                             data-bs-toggle="tooltip"
-                                                            title="Lista de dominios donde el widget puede cargarse. Dejar vacío para permitir todos."></i>
+                                                            title="Lista de dominios donde el widget puede cargarse"></i>
                                                     </label>
                                                     <input class="form-control" wire:model.defer="allowed_domains"
-                                                        placeholder="ejemplo.com, app.ejemplo.com (Dejar vacío para permitir todos)">
+                                                        placeholder="ejemplo.com, app.ejemplo.com (sin http/https)">
                                                     <div class="form-text">Separa los dominios con comas.</div>
                                                     @error('allowed_domains') <span
                                                     class="text-danger small">{{ $message }}</span> @enderror
